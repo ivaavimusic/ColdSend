@@ -86,106 +86,113 @@ async function createWindow() {
   createMenu();
 }
 
+// Embedded server instance
+let httpServer = null;
+
 function startServer() {
-  if (serverProcess) return;
+  if (httpServer) return;
   
   try {
-    console.log('Starting server process...');
+    console.log('Starting embedded server...');
     
-    // Create logs directory
-    const userDataPath = app.getPath('userData');
-    const logsPath = path.join(userDataPath, 'logs');
-    if (!fs.existsSync(logsPath)) {
-      fs.mkdirSync(logsPath, { recursive: true });
-    }
+    // Import required modules
+    const express = require('express');
+    const multer = require('multer');
+    const mimeTypes = require('mime-types');
     
-    const logFile = path.join(logsPath, 'server.log');
-    const logStream = fs.createWriteStream(logFile, { flags: 'a' });
-    logStream.write(`\n--- Server started at ${new Date().toISOString()} ---\n`);
+    const serverApp = express();
     
-    // Set up paths for packaged vs development
-    let serverPath, cwd;
+    // Middleware
+    serverApp.use((req, res, next) => {
+      res.header('Access-Control-Allow-Origin', '*');
+      res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
+      res.header('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept, Authorization');
+      if (req.method === 'OPTIONS') {
+        res.sendStatus(200);
+      } else {
+        next();
+      }
+    });
     
+    serverApp.use(express.json({ limit: '1mb' }));
+    serverApp.use(express.urlencoded({ extended: true }));
+    
+    // Set up static file serving
+    let publicDir;
     if (app.isPackaged) {
-      // In packaged app, use unpacked asar files
-      serverPath = path.join(process.resourcesPath, 'app.asar.unpacked', 'src', 'server.js');
-      cwd = path.join(process.resourcesPath, 'app.asar.unpacked');
+      publicDir = path.join(process.resourcesPath, 'app.asar.unpacked', 'public');
     } else {
-      // In development
-      serverPath = path.join(__dirname, '../src/server.js');
-      cwd = path.join(__dirname, '..');
+      publicDir = path.join(__dirname, '../public');
     }
     
-    logStream.write(`Server path: ${serverPath}\n`);
-    logStream.write(`Working directory: ${cwd}\n`);
+    serverApp.use(express.static(publicDir));
     
-    // Use Electron's Node.js in packaged app
-    const nodeBinary = app.isPackaged ? process.execPath : 'node';
-    logStream.write(`Node binary: ${nodeBinary}\n`);
+    // Basic API endpoints
+    serverApp.get('/api/health', (req, res) => {
+      res.json({ ok: true, message: 'ColdSend server is running' });
+    });
     
-    serverProcess = spawn(nodeBinary, [serverPath], {
-      stdio: 'pipe',
-      cwd: cwd,
-      env: {
-        ...process.env,
-        NODE_ENV: 'production',
-        PORT: PORT.toString(),
-        COLDSEND_USER_DATA: userDataPath,
-        ELECTRON_RUN_AS_NODE: '1'
+    serverApp.get('/api/scan-devices', (req, res) => {
+      res.json({ devices: [], adapter: 'wifi-direct' });
+    });
+    
+    serverApp.get('/api/connected-devices', (req, res) => {
+      res.json({ devices: [] });
+    });
+    
+    serverApp.post('/api/connect-device', (req, res) => {
+      res.json({ success: false, error: 'Device connection not implemented in embedded mode' });
+    });
+    
+    serverApp.post('/api/send-text', (req, res) => {
+      res.json({ success: false, error: 'Text sending not implemented in embedded mode' });
+    });
+    
+    // File upload setup
+    const upload = multer({ dest: path.join(app.getPath('temp'), 'coldsend-uploads') });
+    
+    serverApp.post('/api/send-file', upload.single('file'), (req, res) => {
+      res.json({ success: false, error: 'File sending not implemented in embedded mode' });
+    });
+    
+    // Fallback to serve index.html
+    serverApp.get('*', (req, res) => {
+      res.sendFile(path.join(publicDir, 'index.html'));
+    });
+    
+    // Start the server
+    httpServer = serverApp.listen(PORT, '127.0.0.1', () => {
+      console.log(`ColdSend embedded server listening at http://127.0.0.1:${PORT}`);
+      actualServerPort = PORT;
+      
+      // Load the UI
+      if (mainWindow) {
+        mainWindow.loadURL(`http://localhost:${PORT}`);
       }
     });
     
-    serverProcess.stdout.on('data', (data) => {
-      const output = `Server: ${data}`;
-      console.log(output);
-      logStream.write(output);
-      
-      // Detect server port and load UI
-      const portMatch = data.toString().match(/listening at http:\/\/[^:]+:(\d+)/);
-      if (portMatch && portMatch[1]) {
-        actualServerPort = parseInt(portMatch[1], 10);
-        console.log(`Detected server on port: ${actualServerPort}`);
-        if (mainWindow) {
-          mainWindow.loadURL(`http://localhost:${actualServerPort}`);
-        }
-      }
-    });
-    
-    serverProcess.stderr.on('data', (data) => {
-      const error = `Server Error: ${data}`;
-      console.error(error);
-      logStream.write(error);
-    });
-    
-    serverProcess.on('error', (err) => {
-      const error = `Failed to start server: ${err.message}\n`;
-      console.error(error);
-      logStream.write(error);
-      
-      dialog.showErrorBox('Server Error', 'Failed to start ColdSend server.');
-    });
-    
-    serverProcess.on('close', (code) => {
-      const message = `Server exited with code ${code}\n`;
-      console.log(message);
-      logStream.write(message);
-      
-      serverProcess = null;
-      if (code !== 0 && code !== null) {
-        dialog.showErrorBox('Server Stopped', 'ColdSend server stopped unexpectedly.');
+    httpServer.on('error', (err) => {
+      console.error('Server error:', err);
+      if (err.code === 'EADDRINUSE') {
+        // Try next port
+        PORT += 1;
+        actualServerPort = PORT;
+        setTimeout(() => startServer(), 100);
+      } else {
+        dialog.showErrorBox('Server Error', `Failed to start server: ${err.message}`);
       }
     });
     
   } catch (err) {
-    console.error('Error starting server:', err);
-    dialog.showErrorBox('Startup Error', `Failed to initialize: ${err.message}`);
+    console.error('Error starting embedded server:', err);
+    dialog.showErrorBox('Server Error', `Failed to start ColdSend server: ${err.message}`);
   }
 }
 
 function stopServer() {
-  if (serverProcess) {
-    serverProcess.kill();
-    serverProcess = null;
+  if (httpServer) {
+    httpServer.close();
+    httpServer = null;
   }
 }
 
