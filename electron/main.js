@@ -89,98 +89,62 @@ async function createWindow() {
 function startServer() {
   if (serverProcess) return;
   
-  // Use absolute path for production build
-  let serverPath;
-  if (app.isPackaged) {
-    // In packaged app, the path is relative to the app resources
-    serverPath = path.join(process.resourcesPath, 'app', 'src', 'server.js');
-    console.log('Using packaged server path:', serverPath);
-  } else {
-    // In development, use relative path
-    serverPath = path.join(__dirname, '../src/server.js');
-    console.log('Using development server path:', serverPath);
-  }
-  
-  // Create logs directory if it doesn't exist
-  const userDataPath = app.getPath('userData');
-  const logsPath = path.join(userDataPath, 'logs');
-  
   try {
+    console.log('Starting server process...');
+    
+    // Create logs directory
+    const userDataPath = app.getPath('userData');
+    const logsPath = path.join(userDataPath, 'logs');
     if (!fs.existsSync(logsPath)) {
       fs.mkdirSync(logsPath, { recursive: true });
     }
     
-    // Create log file for debugging
     const logFile = path.join(logsPath, 'server.log');
     const logStream = fs.createWriteStream(logFile, { flags: 'a' });
-    
     logStream.write(`\n--- Server started at ${new Date().toISOString()} ---\n`);
-    logStream.write(`Server path: ${serverPath}\n`);
     
-    // Start server process
-    let nodeBinary;
-    
-    if (app.isPackaged) {
-      // In packaged app, use the bundled Node executable
-      if (process.platform === 'win32') {
-        // On Windows, the Node executable is named node.exe
-        nodeBinary = path.join(process.resourcesPath, 'app.asar.unpacked', 'node_modules', 'electron', 'dist', 'resources', 'electron.exe');
-      } else if (process.platform === 'darwin') {
-        // On macOS, we can use the Electron binary directly
-        nodeBinary = process.execPath;
-      } else {
-        // On Linux, similar to macOS
-        nodeBinary = process.execPath;
-      }
-      
-      logStream.write(`Using bundled node: ${nodeBinary}\n`);
-    } else {
-      // In development, use system Node
-      nodeBinary = 'node';
-    }
-    
-    // Set up the working directory and module paths
-    let cwd, nodeModulesPath;
+    // Set up paths for packaged vs development
+    let serverPath, cwd;
     
     if (app.isPackaged) {
-      // In packaged app, set working directory to the app root
-      cwd = path.join(process.resourcesPath, 'app');
-      nodeModulesPath = path.join(cwd, 'node_modules');
+      // In packaged app, use unpacked asar files
+      serverPath = path.join(process.resourcesPath, 'app.asar.unpacked', 'src', 'server.js');
+      cwd = path.join(process.resourcesPath, 'app.asar.unpacked');
     } else {
-      // In development, use project root
+      // In development
+      serverPath = path.join(__dirname, '../src/server.js');
       cwd = path.join(__dirname, '..');
-      nodeModulesPath = path.join(cwd, 'node_modules');
     }
     
+    logStream.write(`Server path: ${serverPath}\n`);
     logStream.write(`Working directory: ${cwd}\n`);
-    logStream.write(`Node modules path: ${nodeModulesPath}\n`);
+    
+    // Use Electron's Node.js in packaged app
+    const nodeBinary = app.isPackaged ? process.execPath : 'node';
+    logStream.write(`Node binary: ${nodeBinary}\n`);
     
     serverProcess = spawn(nodeBinary, [serverPath], {
       stdio: 'pipe',
-      cwd: cwd, // Set working directory
-      env: { 
-        ...process.env, 
+      cwd: cwd,
+      env: {
+        ...process.env,
         NODE_ENV: 'production',
+        PORT: PORT.toString(),
         COLDSEND_USER_DATA: userDataPath,
-        PORT: PORT.toString(), // Pass the desired port to the server
-        ELECTRON_RUN_AS_NODE: '1', // This tells Electron to behave like Node.js
-        NODE_PATH: nodeModulesPath // Help Node find modules
+        ELECTRON_RUN_AS_NODE: '1'
       }
     });
     
     serverProcess.stdout.on('data', (data) => {
       const output = `Server: ${data}`;
       console.log(output);
-      logStream.write(`${output}\n`);
+      logStream.write(output);
       
-      // Check if the server output contains the port information
-      const dataStr = data.toString();
-      const portMatch = dataStr.match(/listening at http:\/\/[^:]+:(\d+)/);
+      // Detect server port and load UI
+      const portMatch = data.toString().match(/listening at http:\/\/[^:]+:(\d+)/);
       if (portMatch && portMatch[1]) {
         actualServerPort = parseInt(portMatch[1], 10);
-        console.log(`Detected server running on port: ${actualServerPort}`);
-        
-        // Now that we know the actual port, load the app
+        console.log(`Detected server on port: ${actualServerPort}`);
         if (mainWindow) {
           mainWindow.loadURL(`http://localhost:${actualServerPort}`);
         }
@@ -190,47 +154,31 @@ function startServer() {
     serverProcess.stderr.on('data', (data) => {
       const error = `Server Error: ${data}`;
       console.error(error);
-      logStream.write(`${error}\n`);
-      
-      // Don't crash the app on server errors, just log them
-      if (mainWindow) {
-        mainWindow.webContents.send('server-error', error);
-      }
+      logStream.write(error);
     });
     
     serverProcess.on('error', (err) => {
-      const error = `Failed to start server process: ${err.message}`;
+      const error = `Failed to start server: ${err.message}\n`;
       console.error(error);
-      logStream.write(`${error}\n`);
+      logStream.write(error);
       
-      // Show user-friendly error dialog
-      if (mainWindow) {
-        dialog.showErrorBox(
-          'Server Error',
-          'Failed to start ColdSend server. Please restart the app.'
-        );
-      }
+      dialog.showErrorBox('Server Error', 'Failed to start ColdSend server.');
     });
     
     serverProcess.on('close', (code) => {
-      const message = `Server process exited with code ${code}`;
+      const message = `Server exited with code ${code}\n`;
       console.log(message);
-      logStream.write(`${message}\n`);
+      logStream.write(message);
       
       serverProcess = null;
-      if (code !== 0 && code !== null && mainWindow) {
-        dialog.showErrorBox(
-          'Server Stopped',
-          'ColdSend server stopped unexpectedly. Please restart the app.'
-        );
+      if (code !== 0 && code !== null) {
+        dialog.showErrorBox('Server Stopped', 'ColdSend server stopped unexpectedly.');
       }
     });
+    
   } catch (err) {
-    console.error('Error setting up server:', err);
-    dialog.showErrorBox(
-      'Startup Error',
-      `Failed to initialize ColdSend: ${err.message}`
-    );
+    console.error('Error starting server:', err);
+    dialog.showErrorBox('Startup Error', `Failed to initialize: ${err.message}`);
   }
 }
 
