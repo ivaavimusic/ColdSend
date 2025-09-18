@@ -46,13 +46,14 @@
     "prepublishOnly": "npm test && npm run lint",
     "electron": "electron electron/main.js",
     "electron-dev": "NODE_ENV=development electron electron/main.js",
-    "dist": "electron-builder",
-    "dist-mac": "electron-builder --mac",
-    "dist-win": "electron-builder --win",
-    "dist-linux": "electron-builder --linux",
-    "dist-all": "electron-builder --mac --win --linux",
+    "generate-icons": "node scripts/generate-icons.js",
+    "dist": "npm run generate-icons && electron-builder",
+    "dist-mac": "npm run generate-icons && electron-builder --mac",
+    "dist-win": "npm run generate-icons && electron-builder --win",
+    "dist-linux": "npm run generate-icons && electron-builder --linux",
+    "dist-all": "npm run generate-icons && electron-builder --mac --win --linux",
     "release": "./release.sh",
-    "publish": "electron-builder --publish=always"
+    "publish": "npm run generate-icons && electron-builder --publish=always"
   },
   "engines": {
     "node": ">=16.0.0",
@@ -70,7 +71,10 @@
   "devDependencies": {
     "electron": "^38.1.2",
     "electron-builder": "^24.9.1",
-    "nodemon": "^3.1.0"
+    "electron-icon-builder": "^2.0.1",
+    "electron-icon-maker": "^0.0.5",
+    "nodemon": "^3.1.0",
+    "sharp": "^0.34.4"
   },
   "os": [
     "darwin",
@@ -104,6 +108,7 @@
     ],
     "mac": {
       "category": "public.app-category.utilities",
+      "icon": "electron/assets/icons/icons/icon.icns",
       "target": [
         {
           "target": "dmg",
@@ -122,6 +127,7 @@
       ]
     },
     "win": {
+      "icon": "electron/assets/icons/icons/icon.ico",
       "target": [
         {
           "target": "nsis",
@@ -138,6 +144,7 @@
       ]
     },
     "linux": {
+      "icon": "electron/assets/icons/icons",
       "target": [
         {
           "target": "AppImage",

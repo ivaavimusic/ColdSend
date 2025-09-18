@@ -59,8 +59,8 @@ async function createWindow() {
       enableRemoteModule: false,
       webSecurity: true
     },
-    // Use the SVG icon (electron-builder will convert as needed)
-    icon: path.join(__dirname, 'assets', 'icon.svg'),
+    // Use the generated icon
+    icon: path.join(__dirname, 'assets', 'icons', 'icons', '256x256.png'),
     titleBarStyle: 'default',
     show: false // Don't show until ready
   });
