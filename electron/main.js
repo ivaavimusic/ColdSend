@@ -9,21 +9,16 @@ let mainWindow;
 let serverProcess;
 let PORT = 4001; // Start with 4001 to avoid conflicts with dev server
 
+// Global variable to track the actual port used by the server
+let actualServerPort = PORT;
+
 // Function to find an available port
 function findAvailablePort(startPort) {
   return new Promise((resolve, reject) => {
     const server = net.createServer();
-    server.listen(startPort, (err) => {
-      if (err) {
-        // Port is in use, try next one
-        server.close();
-        findAvailablePort(startPort + 1).then(resolve).catch(reject);
-      } else {
-        // Port is available
-        const port = server.address().port;
-        server.close();
-        resolve(port);
-      }
+    server.listen(startPort, () => {
+      const port = server.address().port;
+      server.close(() => resolve(port));
     });
     server.on('error', (err) => {
       if (err.code === 'EADDRINUSE') {
@@ -68,10 +63,7 @@ async function createWindow() {
   // Start the Express server
   startServer();
 
-  // Load the app after server starts
-  setTimeout(() => {
-    mainWindow.loadURL(`http://localhost:${PORT}`);
-  }, 3000); // Give more time for server to start
+  // We'll load the app once the server is ready and reports its actual port
 
   // Show window when ready to prevent visual flash
   mainWindow.once('ready-to-show', () => {
@@ -131,7 +123,8 @@ function startServer() {
       env: { 
         ...process.env, 
         NODE_ENV: 'production',
-        COLDSEND_USER_DATA: userDataPath
+        COLDSEND_USER_DATA: userDataPath,
+        PORT: PORT.toString() // Pass the desired port to the server
       }
     });
     
@@ -139,6 +132,19 @@ function startServer() {
       const output = `Server: ${data}`;
       console.log(output);
       logStream.write(`${output}\n`);
+      
+      // Check if the server output contains the port information
+      const dataStr = data.toString();
+      const portMatch = dataStr.match(/listening at http:\/\/[^:]+:(\d+)/);
+      if (portMatch && portMatch[1]) {
+        actualServerPort = parseInt(portMatch[1], 10);
+        console.log(`Detected server running on port: ${actualServerPort}`);
+        
+        // Now that we know the actual port, load the app
+        if (mainWindow) {
+          mainWindow.loadURL(`http://localhost:${actualServerPort}`);
+        }
+      }
     });
     
     serverProcess.stderr.on('data', (data) => {
