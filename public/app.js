@@ -278,6 +278,14 @@ function addChatMessage(text, type = 'received', fileData = null) {
     downloadBtn.innerHTML = '💾 Download';
     downloadBtn.onclick = () => downloadBroadcastFile(fileData);
     contentDiv.appendChild(downloadBtn);
+    
+    // Add a "View" button as alternative
+    const viewBtn = document.createElement('button');
+    viewBtn.className = 'download-file-btn';
+    viewBtn.innerHTML = '👁️ View';
+    viewBtn.style.marginLeft = '8px';
+    viewBtn.onclick = () => viewBroadcastFile(fileData);
+    contentDiv.appendChild(viewBtn);
   }
   
   const timeSmall = document.createElement('small');
@@ -309,23 +317,113 @@ function downloadBroadcastFile(fileData) {
     const byteArray = new Uint8Array(byteNumbers);
     const blob = new Blob([byteArray], { type: fileData.mimeType || 'application/octet-stream' });
     
-    console.log('Blob created:', blob.size, 'bytes');
+    console.log('Blob created:', blob.size, 'bytes', 'type:', blob.type);
     
-    // Create download link
+    // Try multiple download methods
+    const filename = fileData.filename || 'download';
+    
+    // Method 1: Standard download link
+    if (downloadViaLink(blob, filename)) {
+      showToast(`Downloaded: ${filename}`);
+      return;
+    }
+    
+    // Method 2: Force download with data URL (fallback)
+    if (downloadViaDataURL(fileData.content, filename, fileData.mimeType)) {
+      showToast(`Downloaded: ${filename}`);
+      return;
+    }
+    
+    // Method 3: Open in new tab as last resort
     const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = fileData.filename || 'download';
-    a.style.display = 'none';
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    URL.revokeObjectURL(url);
+    window.open(url, '_blank');
+    showToast(`Opened in new tab: ${filename}`);
     
-    showToast(`Downloaded: ${fileData.filename}`);
   } catch (e) {
     console.error('Download error:', e);
     showToast('Failed to download file: ' + e.message, 'error');
+  }
+}
+
+function downloadViaLink(blob, filename) {
+  try {
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = filename;
+    a.style.display = 'none';
+    
+    // Add to DOM, click, and remove
+    document.body.appendChild(a);
+    
+    // Force click with user gesture simulation
+    const clickEvent = new MouseEvent('click', {
+      view: window,
+      bubbles: true,
+      cancelable: true
+    });
+    
+    a.dispatchEvent(clickEvent);
+    
+    // Clean up after a short delay
+    setTimeout(() => {
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+    }, 100);
+    
+    console.log('Download via link attempted');
+    return true;
+  } catch (e) {
+    console.error('Link download failed:', e);
+    return false;
+  }
+}
+
+function downloadViaDataURL(base64Content, filename, mimeType) {
+  try {
+    const dataURL = `data:${mimeType || 'application/octet-stream'};base64,${base64Content}`;
+    const a = document.createElement('a');
+    a.href = dataURL;
+    a.download = filename;
+    a.style.display = 'none';
+    
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    
+    console.log('Download via data URL attempted');
+    return true;
+  } catch (e) {
+    console.error('Data URL download failed:', e);
+    return false;
+  }
+}
+
+function viewBroadcastFile(fileData) {
+  try {
+    // Convert base64 to blob
+    const byteCharacters = atob(fileData.content);
+    const byteNumbers = new Array(byteCharacters.length);
+    for (let i = 0; i < byteCharacters.length; i++) {
+      byteNumbers[i] = byteCharacters.charCodeAt(i);
+    }
+    const byteArray = new Uint8Array(byteNumbers);
+    const blob = new Blob([byteArray], { type: fileData.mimeType || 'application/octet-stream' });
+    
+    // Open in new tab/window
+    const url = URL.createObjectURL(blob);
+    const newWindow = window.open(url, '_blank');
+    
+    if (newWindow) {
+      showToast(`Opened ${fileData.filename} in new tab`);
+      // Clean up URL after a delay
+      setTimeout(() => URL.revokeObjectURL(url), 10000);
+    } else {
+      showToast('Popup blocked. Please allow popups and try again.', 'error');
+    }
+  } catch (e) {
+    console.error('View error:', e);
+    showToast('Failed to view file: ' + e.message, 'error');
   }
 }
 
@@ -989,6 +1087,10 @@ window.clearSelectedFiles = function() {
 
 window.downloadBroadcastFile = function(fileData) {
   downloadBroadcastFile(fileData);
+};
+
+window.viewBroadcastFile = function(fileData) {
+  viewBroadcastFile(fileData);
 };
 
 // Initialize app
