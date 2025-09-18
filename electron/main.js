@@ -139,14 +139,32 @@ function startServer() {
       nodeBinary = 'node';
     }
     
+    // Set up the working directory and module paths
+    let cwd, nodeModulesPath;
+    
+    if (app.isPackaged) {
+      // In packaged app, set working directory to the app root
+      cwd = path.join(process.resourcesPath, 'app');
+      nodeModulesPath = path.join(cwd, 'node_modules');
+    } else {
+      // In development, use project root
+      cwd = path.join(__dirname, '..');
+      nodeModulesPath = path.join(cwd, 'node_modules');
+    }
+    
+    logStream.write(`Working directory: ${cwd}\n`);
+    logStream.write(`Node modules path: ${nodeModulesPath}\n`);
+    
     serverProcess = spawn(nodeBinary, [serverPath], {
       stdio: 'pipe',
+      cwd: cwd, // Set working directory
       env: { 
         ...process.env, 
         NODE_ENV: 'production',
         COLDSEND_USER_DATA: userDataPath,
         PORT: PORT.toString(), // Pass the desired port to the server
-        ELECTRON_RUN_AS_NODE: '1' // This tells Electron to behave like Node.js
+        ELECTRON_RUN_AS_NODE: '1', // This tells Electron to behave like Node.js
+        NODE_PATH: nodeModulesPath // Help Node find modules
       }
     });
     
