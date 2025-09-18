@@ -1,0 +1,356 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>ColdSend</title>
+  <link rel="stylesheet" href="/styles.css" />
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+</head>
+<body>
+  <div class="container">
+    <header>
+      <div class="header-content">
+        <div class="logo">
+          <div class="logo-icon">
+            <svg width="32" height="32" viewBox="0 0 32 32" fill="none">
+              <path d="M16 2L26 8V24L16 30L6 24V8L16 2Z" stroke="currentColor" stroke-width="2" fill="none"/>
+              <path d="M16 12L20 14V18L16 20L12 18V14L16 12Z" fill="currentColor"/>
+            </svg>
+          </div>
+          <div>
+            <h1>ColdSend</h1>
+            <p class="subtitle">Secure local transfer via Wi‑Fi to Bluetooth</p>
+          </div>
+        </div>
+        <div class="header-controls">
+          <div class="protocol-toggle">
+            <button class="protocol-option active" data-protocol="wifi-direct" title="Wi-Fi Direct - Fast, long range">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
+                <path d="M12 2L13.09 8.26L22 9L13.09 9.74L12 16L10.91 9.74L2 9L10.91 8.26L12 2Z" stroke="currentColor" stroke-width="2" fill="currentColor"/>
+                <path d="M12 12C14.21 12 16 10.21 16 8S14.21 4 12 4 8 5.79 8 8 9.79 12 12 12Z" stroke="currentColor" stroke-width="1.5" fill="none"/>
+              </svg>
+              <span>Wi-Fi</span>
+            </button>
+            <button class="protocol-option" data-protocol="bluetooth" title="Bluetooth - Universal compatibility">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
+                <path d="M12 2L16 6L13 9L16 12L12 16V22L8 18L11 15L8 12L12 8V2Z" stroke="currentColor" stroke-width="2" fill="currentColor"/>
+              </svg>
+              <span>Bluetooth</span>
+            </button>
+          </div>
+          <button id="themeToggle" class="theme-toggle" title="Toggle theme">
+            <svg class="sun-icon" width="20" height="20" viewBox="0 0 24 24" fill="none">
+              <circle cx="12" cy="12" r="5" stroke="currentColor" stroke-width="2"/>
+              <line x1="12" y1="1" x2="12" y2="3" stroke="currentColor" stroke-width="2"/>
+              <line x1="12" y1="21" x2="12" y2="23" stroke="currentColor" stroke-width="2"/>
+              <line x1="4.22" y1="4.22" x2="5.64" y2="5.64" stroke="currentColor" stroke-width="2"/>
+              <line x1="18.36" y1="18.36" x2="19.78" y2="19.78" stroke="currentColor" stroke-width="2"/>
+              <line x1="1" y1="12" x2="3" y2="12" stroke="currentColor" stroke-width="2"/>
+              <line x1="21" y1="12" x2="23" y2="12" stroke="currentColor" stroke-width="2"/>
+              <line x1="4.22" y1="19.78" x2="5.64" y2="18.36" stroke="currentColor" stroke-width="2"/>
+              <line x1="18.36" y1="5.64" x2="19.78" y2="4.22" stroke="currentColor" stroke-width="2"/>
+            </svg>
+            <svg class="moon-icon" width="20" height="20" viewBox="0 0 24 24" fill="none">
+              <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z" stroke="currentColor" stroke-width="2"/>
+            </svg>
+          </button>
+          <div class="status-indicator">
+            <div class="status-dot" id="connectionStatus"></div>
+            <span id="connectionText">Connecting...</span>
+          </div>
+        </div>
+      </div>
+    </header>
+
+    <main>
+      <div class="tabs">
+        <button class="tab-button active" data-tab="devices">Devices</button>
+        <button class="tab-button" data-tab="chat">Chat</button>
+        <button class="tab-button" data-tab="send">Send</button>
+        <button class="tab-button" data-tab="queue">Queue</button>
+        <button class="tab-button" data-tab="settings">Settings</button>
+      </div>
+
+      <div class="tab-content active" id="devices-tab">
+        <div class="cards-grid">
+          <section class="card">
+            <div class="card-header">
+              <div class="card-icon devices-icon">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
+                  <rect x="2" y="3" width="20" height="14" rx="2" ry="2" stroke="currentColor" stroke-width="2" fill="none"/>
+                  <line x1="8" y1="21" x2="16" y2="21" stroke="currentColor" stroke-width="2"/>
+                  <line x1="12" y1="17" x2="12" y2="21" stroke="currentColor" stroke-width="2"/>
+                </svg>
+              </div>
+              <h2>Device Discovery</h2>
+              <button id="scanDevices" class="btn-secondary">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
+                  <path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6" stroke="currentColor" stroke-width="2" fill="none"/>
+                </svg>
+                Scan
+              </button>
+            </div>
+            <div class="scan-status" id="scanStatus">
+              <div class="scan-idle">
+                <svg width="48" height="48" viewBox="0 0 24 24" fill="none">
+                  <circle cx="12" cy="12" r="3" stroke="currentColor" stroke-width="2" fill="none"/>
+                  <path d="M12 1v6m0 6v6m11-7h-6m-6 0H1" stroke="currentColor" stroke-width="2" opacity="0.3"/>
+                </svg>
+                <p id="scanIdleText">Click scan to discover nearby devices</p>
+              </div>
+            </div>
+            <div id="discoveredDevices" class="device-list"></div>
+          </section>
+
+          <section class="card">
+            <div class="card-header">
+              <div class="card-icon connected-icon">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
+                  <path d="M6.5 6.5C8.5 4.5 11.5 4.5 13.5 6.5s2 5 0 7l-7 7-7-7s-2-5 0-7 5-2 7 0" stroke="currentColor" stroke-width="2" fill="none"/>
+                  <path d="M15 9l6 6-6 6" stroke="currentColor" stroke-width="2" fill="none"/>
+                </svg>
+              </div>
+              <h2>Connected Devices</h2>
+              <div class="connection-mode">
+                <label class="mode-switch">
+                  <input type="radio" name="connectionMode" value="single" checked>
+                  <span>Single</span>
+                </label>
+                <label class="mode-switch">
+                  <input type="radio" name="connectionMode" value="broadcast">
+                  <span>Broadcast</span>
+                </label>
+              </div>
+            </div>
+            <div id="connectedDevices" class="device-list">
+              <div class="no-devices">
+                <svg width="48" height="48" viewBox="0 0 24 24" fill="none">
+                  <circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="2" opacity="0.3"/>
+                  <path d="M8 12l2 2 4-4" stroke="currentColor" stroke-width="2" opacity="0.3"/>
+                </svg>
+                <p>No devices connected</p>
+                <small>Discover and pair devices to start transferring</small>
+              </div>
+            </div>
+          </section>
+        </div>
+      </div>
+
+      <!-- Chat Tab -->
+      <div class="tab-content" id="chat-tab">
+        <div class="cards-grid">
+          <section class="card">
+            <div class="card-header">
+              <div class="card-icon text-icon">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
+                  <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" stroke="currentColor" stroke-width="2" fill="none"/>
+                </svg>
+              </div>
+              <h2>Chat</h2>
+            </div>
+            
+            <div class="chat-container">
+              <div class="chat-messages" id="chatMessages">
+                <div class="chat-message system">
+                  <div class="message-content">
+                    <p>💬 Chat ready! Messages will be sent to connected devices.</p>
+                  </div>
+                </div>
+              </div>
+            </div>
+            
+            <form id="chatForm" class="chat-form">
+              <div class="broadcast-toggle">
+                <label class="toggle-switch">
+                  <input type="checkbox" id="broadcastMode">
+                  <span class="toggle-slider"></span>
+                </label>
+                <span class="toggle-label">Broadcast to all listeners</span>
+              </div>
+              <div class="chat-input-group">
+                <textarea id="chatInput" placeholder="Type your message..." rows="2"></textarea>
+                <input type="file" id="chatFileInput" style="display: none;" multiple>
+                <button type="button" class="chat-file-btn" onclick="document.getElementById('chatFileInput').click()">
+                  📎
+                </button>
+                <button type="submit" class="btn btn-primary chat-send-btn">
+                  ➤
+                </button>
+              </div>
+              
+              <!-- Selected Files Preview -->
+              <div class="selected-files" id="selectedFiles" style="display: none;">
+                <div class="selected-files-header">
+                  <span>Selected files:</span>
+                  <button type="button" class="clear-files-btn" onclick="clearSelectedFiles()">✕</button>
+                </div>
+                <div class="selected-files-list" id="selectedFilesList"></div>
+              </div>
+              <div class="char-count">
+                <span id="chatCharCount">0</span> characters
+              </div>
+            </form>
+          </section>
+        </div>
+      </div>
+
+      <!-- Send Tab -->
+      <div class="tab-content" id="send-tab">
+        <div class="cards-grid">
+          <section class="card">
+            <div class="card-header">
+              <div class="card-icon text-icon">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
+                  <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z" stroke="currentColor" stroke-width="2" fill="none"/>
+                  <polyline points="22,6 12,13 2,6" stroke="currentColor" stroke-width="2"/>
+                </svg>
+              </div>
+              <h2>Send Text</h2>
+            </div>
+            <form id="textForm">
+              <div class="form-group">
+                <label for="textInput">Message</label>
+                <textarea id="textInput" placeholder="Type your message here..." rows="4" required></textarea>
+                <div class="char-count">
+                  <span id="charCount">0</span> characters
+                </div>
+              </div>
+              <button type="submit" class="btn btn-primary">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
+                  <line x1="22" y1="2" x2="11" y2="13" stroke="currentColor" stroke-width="2"/>
+                  <polygon points="22,2 15,22 11,13 2,9 22,2" fill="currentColor"/>
+                </svg>
+                Send Message
+              </button>
+            </form>
+          </section>
+
+          <section class="card">
+            <div class="card-header">
+              <div class="card-icon file-icon">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
+                  <path d="M13 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z" stroke="currentColor" stroke-width="2" fill="none"/>
+                  <polyline points="13,2 13,9 20,9" stroke="currentColor" stroke-width="2" fill="none"/>
+                </svg>
+              </div>
+              <h2>Send File</h2>
+            </div>
+            <form id="fileForm">
+              <div class="form-group">
+                <label for="fileTarget">Target Device</label>
+                <input id="fileTarget" name="target" placeholder="Device name (optional)" />
+              </div>
+
+              <div class="form-group">
+                <label for="fileInput">Choose File</label>
+                <div class="file-input-wrapper">
+                  <input id="fileInput" name="file" type="file" />
+                  <div class="file-input-display">
+                    <div class="file-placeholder">
+                      <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
+                        <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" stroke="currentColor" stroke-width="2" fill="none"/>
+                        <polyline points="7,10 12,15 17,10" stroke="currentColor" stroke-width="2" fill="none"/>
+                        <line x1="12" y1="15" x2="12" y2="3" stroke="currentColor" stroke-width="2"/>
+                      </svg>
+                      <span>Drop file here or click to browse</span>
+                    </div>
+                    <div class="file-info" style="display: none;">
+                      <div class="file-name"></div>
+                      <div class="file-size"></div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <button type="submit" class="btn-primary">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
+                  <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" stroke="currentColor" stroke-width="2" fill="none"/>
+                  <polyline points="17,8 12,3 7,8" stroke="currentColor" stroke-width="2" fill="none"/>
+                  <line x1="12" y1="3" x2="12" y2="15" stroke="currentColor" stroke-width="2"/>
+                </svg>
+                Send File
+              </button>
+            </form>
+          </section>
+        </div>
+      </div>
+
+      <div class="tab-content" id="queue-tab">
+        <section class="card full-width">
+          <div class="card-header">
+            <div class="card-icon queue-icon">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
+                <line x1="8" y1="6" x2="21" y2="6" stroke="currentColor" stroke-width="2"/>
+                <line x1="8" y1="12" x2="21" y2="12" stroke="currentColor" stroke-width="2"/>
+                <line x1="8" y1="18" x2="21" y2="18" stroke="currentColor" stroke-width="2"/>
+                <line x1="3" y1="6" x2="3.01" y2="6" stroke="currentColor" stroke-width="2"/>
+                <line x1="3" y1="12" x2="3.01" y2="12" stroke="currentColor" stroke-width="2"/>
+                <line x1="3" y1="18" x2="3.01" y2="18" stroke="currentColor" stroke-width="2"/>
+              </svg>
+            </div>
+            <h2>Transfer Queue</h2>
+            <button id="refresh" class="btn-secondary">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
+                <polyline points="23,4 23,10 17,10" stroke="currentColor" stroke-width="2" fill="none"/>
+                <polyline points="1,20 1,14 7,14" stroke="currentColor" stroke-width="2" fill="none"/>
+                <path d="M20.49 9A9 9 0 0 0 5.64 5.64L1 10m22 4l-4.64 4.36A9 9 0 0 1 3.51 15" stroke="currentColor" stroke-width="2" fill="none"/>
+              </svg>
+              Refresh
+            </button>
+          </div>
+          <div id="status" class="status-display"></div>
+        </section>
+      </div>
+
+      <div class="tab-content" id="settings-tab">
+        <section class="card full-width">
+          <div class="card-header">
+            <div class="card-icon settings-icon">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
+                <circle cx="12" cy="12" r="3" stroke="currentColor" stroke-width="2" fill="none"/>
+                <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1 1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z" stroke="currentColor" stroke-width="2" fill="none"/>
+              </svg>
+            </div>
+            <h2>Connection Settings</h2>
+          </div>
+          <div class="settings-content">
+            <div class="setting-item">
+              <label>Server Address</label>
+              <div class="server-info">
+                <code id="serverAddress">Loading...</code>
+                <button id="copyAddress" class="btn-copy">Copy</button>
+              </div>
+              <p class="setting-description">Share this address with other devices on your network</p>
+            </div>
+            <div class="setting-item">
+              <label>Bluetooth Adapter</label>
+              <div class="adapter-info">
+                <span id="adapterType">Loading...</span>
+                <div class="adapter-status" id="adapterStatus"></div>
+              </div>
+            </div>
+          </div>
+        </section>
+      </div>
+    </main>
+
+    <footer>
+      <div class="footer-content">
+        <p>🔒 Runs locally. No data leaves your network.</p>
+        <div class="footer-links">
+          <a href="#" id="aboutLink">About</a>
+          <a href="#" id="helpLink">Help</a>
+        </div>
+      </div>
+    </footer>
+  </div>
+
+  <!-- Toast notifications -->
+  <div id="toastContainer" class="toast-container"></div>
+
+  <script src="/app.js"></script>
+</body>
+</html>
