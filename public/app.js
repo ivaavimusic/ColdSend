@@ -1057,15 +1057,15 @@ function initEventSource() {
         addChatMessage(fileMessage, 'received', data);
         showToast(`New broadcast file: ${data.filename}`);
         
-        // Auto-download the file
-        if (data.content) {
-          downloadBroadcastFile(data);
-        }
+        // Don't auto-download, let user choose
+        console.log('File ready for download/view');
       } else if (data.type === 'connected') {
         console.log('Connected to broadcast events');
       }
     } catch (e) {
       console.error('Error parsing event data:', e);
+      console.error('Event data length:', event.data ? event.data.length : 'null');
+      showToast('Error receiving broadcast data', 'error');
     }
   };
   
@@ -1085,13 +1085,9 @@ window.clearSelectedFiles = function() {
   document.getElementById('chatFileInput').value = '';
 };
 
-window.downloadBroadcastFile = function(fileData) {
-  downloadBroadcastFile(fileData);
-};
-
-window.viewBroadcastFile = function(fileData) {
-  viewBroadcastFile(fileData);
-};
+// Global functions for HTML onclick handlers
+window.downloadBroadcastFile = downloadBroadcastFile;
+window.viewBroadcastFile = viewBroadcastFile;
 
 // Initialize app
 window.addEventListener('DOMContentLoaded', () => {
