@@ -41,17 +41,19 @@ class WiFiDirectAdapter extends EventEmitter {
         resolve(Array.from(this.discoveredDevices.values()));
       }, timeoutMs);
 
-      // Handle socket errors
+      // Handle socket errors with port fallback
       this.discoverySocket.on('error', (err) => {
         console.error('Discovery socket error:', err.message);
         if (err.code === 'EADDRINUSE') {
           console.log(`Port ${this.discoveryPort} in use, trying ${this.discoveryPort + 1}`);
           this.discoveryPort += 1;
           cleanup();
+          clearTimeout(timer);
           // Retry with new port
           setTimeout(() => this.scanDevices(timeoutMs).then(resolve).catch(reject), 100);
           return;
         }
+        clearTimeout(timer);
         cleanup();
         reject(err);
       });
@@ -77,12 +79,6 @@ class WiFiDirectAdapter extends EventEmitter {
         } catch (err) {
           // Ignore invalid messages
         }
-      });
-
-      this.discoverySocket.on('error', (err) => {
-        clearTimeout(timer);
-        cleanup();
-        reject(err);
       });
 
       // Bind and start broadcasting discovery
@@ -215,6 +211,18 @@ class WiFiDirectAdapter extends EventEmitter {
   startAnnouncement() {
     const announcementSocket = dgram.createSocket('udp4');
     
+    announcementSocket.on('error', (err) => {
+      if (err.code === 'EADDRINUSE') {
+        console.log(`Announcement port ${this.discoveryPort} in use, trying ${this.discoveryPort + 1}`);
+        this.discoveryPort += 1;
+        announcementSocket.close();
+        // Retry with new port
+        setTimeout(() => this.startAnnouncement(), 100);
+        return;
+      }
+      console.error('Announcement socket error:', err);
+    });
+    
     announcementSocket.on('message', (msg, rinfo) => {
       try {
         const request = JSON.parse(msg.toString());
@@ -235,7 +243,10 @@ class WiFiDirectAdapter extends EventEmitter {
       }
     });
 
-    announcementSocket.bind(this.discoveryPort);
+    announcementSocket.bind(this.discoveryPort, () => {
+      console.log(`[WiFiDirect] Announcement service started on port ${this.discoveryPort}`);
+    });
+    
     return announcementSocket;
   }
 }
