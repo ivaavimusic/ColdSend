@@ -1,67 +1,60 @@
 # Building ColdSend Desktop App
 
-## Quick Setup
+This app ships a lightweight Electron shell that launches the same local server and loads the UI.
 
-1. **Install Electron dependencies**:
-   ```bash
-   npm install
-   ```
+## Prerequisites
 
-2. **Run in development mode**:
-   ```bash
-   npm run electron-dev
-   ```
+- Node.js 18+
+- macOS: Xcode CLT for signing/runtime (optional)
+- Windows: Visual Studio Build Tools (for native deps)
 
-3. **Build desktop app**:
-   ```bash
-   # For your current platform
-   npm run dist
-   
-   # For specific platforms
-   npm run dist-mac    # macOS
-   npm run dist-win    # Windows
-   npm run dist-linux  # Linux
-   ```
+## Install
 
-## Icon Setup (Optional)
+```bash
+npm install
+```
 
-To create proper app icons from the SVG:
+## Development (Electron)
 
-1. **Install icon conversion tool**:
-   ```bash
-   npm install -g electron-icon-maker
-   ```
+```bash
+npm run electron-dev
+```
 
-2. **Generate icons**:
-   ```bash
-   electron-icon-maker --input=electron/assets/icon.svg --output=electron/assets/
-   ```
+This starts Electron and points it to `electron/main.js`, which spins up the server and opens a window.
 
-This will create:
-- `icon.icns` (macOS)
-- `icon.ico` (Windows)  
-- `icon.png` (Linux)
+## Build Binaries
 
-## Distribution
+```bash
+# Build for current platform
+npm run dist
 
-The built apps will be in the `dist/` folder:
-- **macOS**: `ColdSend-0.1.0.dmg`
-- **Windows**: `ColdSend Setup 0.1.0.exe`
-- **Linux**: `ColdSend-0.1.0.AppImage`
+# Or explicit
+npm run dist-mac
+npm run dist-win
+npm run dist-linux
+```
 
-## Features
+Results are placed in `dist/`:
+- macOS: `ColdSend-<version>.dmg`
+- Windows: `ColdSend Setup <version>.exe`
+- Linux: `ColdSend-<version>.AppImage`
 
-The desktop app includes:
-- ✅ **Native window** with proper menus
-- ✅ **Auto-starts server** on app launch
-- ✅ **Security hardened** (localhost-only binding)
-- ✅ **System integration** (proper app icon, etc.)
-- ✅ **Cross-platform** (macOS, Windows, Linux)
+## Icons (Optional)
+
+We bundle an SVG at `electron/assets/icon.svg`. If no platform icons are provided, `electron-builder` will use defaults. If you want custom platform icons, generate them with any tool and place them under `electron/assets/icons/`:
+
+- macOS: `icon.icns`
+- Windows: `icon.ico`
+- PNG fallbacks as needed
+
+> Note: Previous docs referenced `icon-gen`/`electron-icon-maker`. These are optional, not required. If you see "default Electron icon is used", it’s safe to ignore.
+
+## Code Signing (macOS)
+
+If you don’t have a Developer ID, `electron-builder` will skip signing and still produce a DMG. You can notarize later or run locally without signing.
 
 ## Troubleshooting
 
-**Bluetooth permissions**: The app may prompt for Bluetooth access on first run. Grant permissions for device scanning to work.
-
-**Port conflicts**: If port 4000 is in use, the app will show an error. Close other applications using that port.
-
-**Build errors**: Ensure you have the required build tools for your platform (Xcode on macOS, Visual Studio on Windows, etc.).
+- **Bluetooth permissions**: macOS will prompt on first run. Allow access for scanning to work.
+- **Port conflicts**: If 4000 is busy, set `PORT` in `.env` or free the port.
+- **Native rebuilds**: `@abandonware/noble` will be rebuilt for your arch automatically by `electron-builder`.

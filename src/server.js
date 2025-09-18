@@ -337,15 +337,25 @@ app.post('/api/send-file', upload.single('file'), async (req, res) => {
     
     // Handle broadcast mode
     if (broadcast === 'true') {
+      // Read file content and encode as base64 for broadcast
+      const fs = require('fs');
+      const fileContent = fs.readFileSync(filePath);
+      const base64Content = fileContent.toString('base64');
+      
       const message = {
         type: 'file',
         filename: originalname,
         size: size,
+        content: base64Content,
+        mimeType: mimeTypes.lookup(originalname) || 'application/octet-stream',
         timestamp: new Date().toISOString(),
         from: 'host'
       };
       
       broadcastToClients(message);
+      
+      // Clean up uploaded file after broadcast
+      fs.unlinkSync(filePath);
       
       res.json({ 
         success: true, 

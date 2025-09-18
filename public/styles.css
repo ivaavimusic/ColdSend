@@ -1256,6 +1256,58 @@ input:checked + .toggle-slider:before {
   font-size: 11px;
 }
 
+/* File Progress Indicators */
+.file-progress {
+  margin-top: 8px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.progress-bar {
+  flex: 1;
+  height: 6px;
+  background: var(--bg-secondary);
+  border-radius: 3px;
+  overflow: hidden;
+  box-shadow: var(--neu-concave);
+}
+
+.progress-fill {
+  height: 100%;
+  background: var(--accent);
+  border-radius: 3px;
+  transition: width 0.3s ease;
+  box-shadow: 0 0 8px rgba(var(--accent-rgb), 0.3);
+}
+
+.progress-text {
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--text-secondary);
+  min-width: 50px;
+  text-align: right;
+}
+
+.download-file-btn {
+  margin-top: 8px;
+  padding: 6px 12px;
+  background: var(--bg-primary);
+  border: none;
+  border-radius: 8px;
+  color: var(--text-secondary);
+  cursor: pointer;
+  font-size: 12px;
+  box-shadow: var(--neu-convex);
+  transition: all 0.3s ease;
+}
+
+.download-file-btn:hover {
+  transform: translateY(-1px);
+  box-shadow: var(--neu-convex), 0 2px 8px rgba(0,0,0,0.1);
+  color: var(--accent);
+}
+
 /* Responsive design */
 @media (max-width: 768px) {
   .header-content {

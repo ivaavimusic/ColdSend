@@ -1,84 +1,71 @@
-# ColdSend Architecture v2.0
+# ColdSend Architecture (Current)
 
-## Multi-Protocol Transfer System
+ColdSend is a local-first transfer hub with a modular adapter layer and a lightweight real‑time channel for broadcasting messages/files to all connected browsers.
 
-### Current Issues
-- Wi-Fi → Bluetooth is unnecessarily complex
-- Bluetooth has range/speed limitations  
-- Requires both Wi-Fi AND Bluetooth hardware
-- Pairing is often problematic
-
-### Proposed Solution: Protocol Options
+## High‑Level Diagram
 
 ```
-┌─────────────────┐    ┌──────────────────┐    ┌─────────────────┐
-│   Client Device │    │   ColdSend Host  │    │  Target Device  │
-│   (Send Files)  │    │   (Web Server)   │    │  (Receive Files)│
-└─────────────────┘    └──────────────────┘    └─────────────────┘
-         │                       │                       │
-         │ 1. Upload via Wi-Fi   │                       │
-         ├──────────────────────►│                       │
-         │                       │ 2. Forward via:       │
-         │                       │                       │
-         │                       ├─ A) Wi-Fi Direct ────►│
-         │                       ├─ B) Bluetooth LE ────►│
-         │                       ├─ C) USB/Serial ──────►│
-         │                       ├─ D) Network Share ───►│
-         │                       └─ E) QR Code/Display ─►│
+┌─────────────────┐     SSE       ┌──────────────────┐
+│  Client (Web)   │◄──────────────│  ColdSend Server │
+│  Chat / Send    │──────────────►│  Express + SSE   │
+└─────────────────┘   HTTP POST    └──────┬──────────┘
+        ▲                                   │ Adapter API
+        │                                   │
+        │                          ┌────────▼──────────┐
+        │                          │  Adapters Layer   │
+        │                          │  (pluggable)      │
+        │                          ├───────────────────┤
+        │                          │ wifi-direct (LAN) │
+        │                          │ bluetooth (BLE)   │
+        │                          └───────────────────┘
 ```
 
-## Transfer Protocols
+## Components
 
-### 1. Wi-Fi Direct Mode
-**Best for**: Modern devices, fast transfers
-- **Range**: 50m+
-- **Speed**: 10-250 Mbps
-- **Setup**: Auto-discovery or manual IP
-- **Use Case**: Phone to laptop, laptop to laptop
+- Web UI (`public/`)
+  - Tabs: `Devices`, `Chat`, `Send`, `Queue`, `Settings`
+  - `Chat` uses Server‑Sent Events (SSE) to receive broadcast messages/files in real time. Enter sends; Shift+Enter adds a newline. Attachment button queues files before sending.
 
-### 2. Bluetooth Mode  
-**Best for**: Legacy devices, low power
-- **Range**: 10m
-- **Speed**: 1-3 Mbps
-- **Setup**: Pairing required
-- **Use Case**: Embedded devices, IoT
+- Server (`src/server.js`)
+  - Express API for status, scan/connect, send text/file
+  - SSE endpoint `/api/events` maintains a set of connected clients and pushes broadcasts
+  - Broadcast endpoints:
+    - `POST /api/broadcast-text`
+    - `POST /api/send-file` with `broadcast=true` (file meta is broadcast)
+  - Adapter factory chooses transport via `TRANSFER_ADAPTER` (`wifi-direct` default, or `bluetooth`)
 
-### 3. USB/Serial Mode
-**Best for**: Air-gapped systems, crypto hardware
-- **Range**: Cable length
-- **Speed**: Very fast
-- **Setup**: Plug and play
-- **Use Case**: Hardware wallets, secure systems
+- Adapters (`src/adapters/`, `src/bluetooth/`)
+  - `wifi-direct.js`: LAN discovery/transfer
+  - `bluetooth/noble.js`: BLE implementation for scans and transfers
+  - `bluetooth/mock.js`: development fallback
 
-### 4. Network Share Mode
-**Best for**: Same network transfers
-- **Range**: Network range
-- **Speed**: Network speed
-- **Setup**: Shared folder
-- **Use Case**: Office networks, home networks
+## Data Flows
 
-### 5. Display/QR Mode
-**Best for**: Text, small files, air-gapped
-- **Range**: Visual
-- **Speed**: Manual
-- **Setup**: None
-- **Use Case**: Crypto seeds, passwords, small data
+1) Chat Broadcast (Text)
+```
+UI → POST /api/broadcast-text → Server → push via SSE → All connected UIs render 📢 message
+```
 
-## Implementation Plan
+2) Chat File Broadcast (Meta)
+```
+UI → POST /api/send-file (broadcast=true) → Server broadcasts file meta via SSE → All UIs render 📢 📎 entry
+```
 
-### Phase 1: Wi-Fi Direct (Immediate)
-- Replace Bluetooth with Wi-Fi Direct
-- Auto-discovery of nearby devices
-- Direct device-to-device transfer
-- No internet required
+3) Classic Send (Host Queue)
+```
+UI → POST /api/send-text|send-file → Server enqueues job → Adapter.forward()
+```
 
-### Phase 2: Protocol Selection (Next)
-- UI to choose transfer method
-- Multiple adapter support
-- Protocol-specific settings
+## Environment
 
-### Phase 3: Advanced Features (Future)
-- Encryption for all protocols
-- Batch transfers
-- Resume capability
-- Transfer history
+```
+TRANSFER_ADAPTER=wifi-direct   # wifi-direct | bluetooth
+BLE_SERVICE_UUID=...
+BLE_CHARACTERISTIC_UUID=...
+```
+
+## Notes
+
+- The SSE broadcast is one‑way (server → clients). Client chat input posts to server.
+- Wi‑Fi Direct is the default adapter and is used for LAN discovery/transfer. Bluetooth is optional.
+- Broadcast endpoints must be registered before the `/api` 404 handler.

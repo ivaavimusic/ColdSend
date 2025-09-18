@@ -1,6 +1,6 @@
 # ColdSend 🚀
 
-**Secure local file transfer via Wi-Fi to Bluetooth**
+**Secure local file transfer over Wi‑Fi with optional Bluetooth forwarding**
 
 A beautiful, local-first app that lets you safely transfer text and files from any device on your network to a Bluetooth-connected device. Perfect for air-gapped systems, crypto hardware, and secure transfers.
 
@@ -11,9 +11,13 @@ A beautiful, local-first app that lets you safely transfer text and files from a
 - 🎨 **Beautiful Neumorphism UI** with light/dark themes
 - 🔒 **Local-first & Secure** - no cloud, no external calls
 - 📱 **Cross-platform** - works on any device with a browser
-- 🔗 **Device Discovery** - scan and pair with Bluetooth devices
+- 🔗 **Device Discovery**
+  - Wi‑Fi Direct host discovery (LAN)
+  - Bluetooth LE scanning (when in BT mode)
 - 📊 **Real-time Queue** - monitor transfer progress
-- 🎯 **Dual Connection Modes** - single device or broadcast to multiple
+- 💬 **Chat Tab** - real‑time chat between connected clients
+- 📢 **Broadcast Mode** - host can broadcast text/files to all listeners
+- 🎯 **Connection Modes** - single device or broadcast to multiple
 - ⚡ **Fast & Lightweight** - minimal dependencies
 
 ## 🚀 Quick Start
@@ -27,8 +31,8 @@ A beautiful, local-first app that lets you safely transfer text and files from a
 
 1. **Clone the repository**
    ```bash
-   git clone https://github.com/yourusername/coldsend.git
-   cd coldsend
+   git clone https://github.com/ivaavimusic/ColdSend.git
+   cd ColdSend
    ```
 
 2. **Install dependencies**
@@ -75,16 +79,16 @@ npm run dev
 - Open `http://HOST_IP:4000` in their browsers
 - Find your host IP with: `ipconfig` (Windows) or `ifconfig` (Mac/Linux)
 
-#### 3. **Pair Bluetooth Devices**
+#### 3. **Pair Bluetooth Devices (optional)**
 - Go to **Devices** tab on the host
 - Click **Scan** to discover nearby Bluetooth devices
 - Click **Connect** on your target device
 - Device appears in "Connected Devices"
 
 #### 4. **Send Files/Text**
-- From any client device, go to **Send** tab
-- Choose text or file to send
-- Files are queued and sent to connected Bluetooth devices
+- From any device, open **Chat** to live‑message other connected clients
+- Toggle **Broadcast** to send to all listeners in real time (via SSE)
+- Use **Send** tab for classic text/file sending to host (and optionally BT)
 - Monitor progress in **Queue** tab
 
 ### Network Setup Options
@@ -120,8 +124,11 @@ PORT=4000                    # Server port
 HOST=0.0.0.0                # Bind to all interfaces
 MAX_UPLOAD_BYTES=52428800   # 50MB upload limit
 
-# Bluetooth Configuration
-BLUETOOTH_ADAPTER=noble      # Use real Bluetooth (default)
+# Transfer Adapter (default Wi‑Fi Direct)
+TRANSFER_ADAPTER=wifi-direct  # wifi-direct | bluetooth
+
+# Bluetooth Configuration (when BT is selected)
+BLUETOOTH_ADAPTER=noble
 
 # BLE Settings (optional)
 BLE_TARGET_NAME=MyDevice     # Device name to auto-connect
@@ -152,7 +159,8 @@ BLE_SCAN_TIMEOUT_MS=10000   # Scan timeout
 - **Responsive design** for all screen sizes
 
 ### Key Components
-- **Device Discovery**: Scan and connect to Bluetooth devices
+- **Device Discovery**: Scan for LAN/BT devices and connect
+- **Chat**: Real‑time chat with Broadcast toggle
 - **File Upload**: Drag & drop or click to select
 - **Transfer Queue**: Real-time progress monitoring
 - **Connection Status**: Live connection indicators
@@ -174,17 +182,20 @@ BLE_SCAN_TIMEOUT_MS=10000   # Scan timeout
 ## 📁 Project Structure
 
 ```
-coldsend/
+ColdSend/
 ├── src/
-│   ├── server.js           # Express server & API
-│   └── bluetooth/          # Bluetooth adapters
-│       ├── index.js        # Adapter factory
-│       ├── noble.js        # BLE implementation
-│       └── mock.js         # Development mock
+│   ├── server.js             # Express server, SSE broadcast, API
+│   ├── adapters/
+│   │   └── wifi-direct.js    # LAN discovery/transfer adapter
+│   └── bluetooth/
+│       ├── index.js          # Adapter factory
+│       ├── noble.js          # BLE implementation
+│       └── mock.js           # Development mock
 ├── public/                 # Web UI
 │   ├── index.html         # Main interface
 │   ├── styles.css         # Neumorphism styling
 │   └── app.js             # Frontend logic
+├── electron/               # Desktop wrapper entrypoint & assets
 ├── uploads/               # Temporary file storage
 └── package.json           # Dependencies
 ```
@@ -200,8 +211,10 @@ coldsend/
 | `POST` | `/api/scan-devices` | Discover Bluetooth devices |
 | `POST` | `/api/connect-device` | Connect to a device |
 | `POST` | `/api/disconnect-device` | Disconnect from device |
-| `POST` | `/api/send-text` | Queue text for transfer |
-| `POST` | `/api/send-file` | Queue file for transfer |
+| `POST` | `/api/send-text` | Queue text for transfer (host → device) |
+| `POST` | `/api/send-file` | Queue file for transfer (host → device) |
+| `POST` | `/api/broadcast-text` | Broadcast text to all connected listeners |
+| `GET`  | `/api/events` | Server‑Sent Events stream for broadcasts |
 
 ### Example Usage
 
@@ -227,12 +240,13 @@ fetch('/api/send-file', {
 ### For End Users
 
 #### Option 1: Direct Download
+See Desktop builds in [`build-desktop.md`](build-desktop.md) or run from source:
+
 ```bash
-# Download and run
-git clone https://github.com/yourusername/coldsend.git
-cd coldsend
+git clone https://github.com/ivaavimusic/ColdSend.git
+cd ColdSend
 npm install
-npm start
+npm run start
 ```
 
 #### Option 2: NPX (Coming Soon)
@@ -240,10 +254,10 @@ npm start
 npx coldsend
 ```
 
-#### Option 3: Desktop App (Planned)
-- Electron-based desktop application
-- One-click installation
-- System tray integration
+#### Option 3: Desktop App
+- Electron‑based desktop application via `electron-builder`
+- DMG/EXE/AppImage builds in `dist/`
+- See [`build-desktop.md`](build-desktop.md)
 
 ### For Developers
 
@@ -289,8 +303,8 @@ We welcome contributions! Please see our [Contributing Guide](CONTRIBUTING.md) f
 
 ### Development Setup
 ```bash
-git clone https://github.com/yourusername/coldsend.git
-cd coldsend
+git clone https://github.com/ivaavimusic/ColdSend.git
+cd ColdSend
 npm install
 npm run dev  # Start with auto-reload
 ```

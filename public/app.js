@@ -204,23 +204,22 @@ async function handleChatSubmit(e) {
     // Send files if present
     if (selectedFiles.length > 0) {
       for (const file of selectedFiles) {
-        // Add file to chat UI
-        addChatMessage(`📎 ${file.name} (${formatFileSize(file.size)})`, 'sent');
+        // Add file to chat UI with progress
+        const messageId = 'file-' + Date.now() + '-' + Math.random().toString(36).substr(2, 9);
+        addFileMessageWithProgress(file, messageId);
         
-        // Upload file
+        // Upload file with progress tracking
         const formData = new FormData();
         formData.append('file', file);
         if (broadcastMode) {
           formData.append('broadcast', 'true');
         }
         
-        const res = await fetch('/api/send-file', {
-          method: 'POST',
-          body: formData
-        });
-        
-        if (!res.ok) {
-          throw new Error(`Failed to upload ${file.name}`);
+        try {
+          await uploadFileWithProgress(formData, file, messageId);
+        } catch (error) {
+          updateFileProgress(messageId, 'error', error.message);
+          throw error;
         }
       }
       
@@ -258,22 +257,56 @@ function removeWelcomeMessage() {
   }
 }
 
-function addChatMessage(text, type = 'received') {
+function addChatMessage(text, type = 'received', fileData = null) {
   const chatMessages = document.getElementById('chatMessages');
   const messageDiv = document.createElement('div');
   messageDiv.className = `chat-message ${type}`;
   
   const timestamp = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
   
+  let content = `<p>${escapeHtml(text)}</p>`;
+  
+  // Add download button for broadcast files
+  if (fileData && fileData.type === 'file' && fileData.content) {
+    content += `<button class="download-file-btn" onclick="downloadBroadcastFile(${JSON.stringify(fileData).replace(/"/g, '&quot;')})">💾 Download</button>`;
+  }
+  
   messageDiv.innerHTML = `
     <div class="message-content">
-      <p>${escapeHtml(text)}</p>
+      ${content}
       <small style="opacity: 0.7; font-size: 12px;">${timestamp}</small>
     </div>
   `;
   
   chatMessages.appendChild(messageDiv);
   chatMessages.scrollTop = chatMessages.scrollHeight;
+}
+
+function downloadBroadcastFile(fileData) {
+  try {
+    // Convert base64 to blob
+    const byteCharacters = atob(fileData.content);
+    const byteNumbers = new Array(byteCharacters.length);
+    for (let i = 0; i < byteCharacters.length; i++) {
+      byteNumbers[i] = byteCharacters.charCodeAt(i);
+    }
+    const byteArray = new Uint8Array(byteNumbers);
+    const blob = new Blob([byteArray], { type: fileData.mimeType || 'application/octet-stream' });
+    
+    // Create download link
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = fileData.filename;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+    
+    showToast(`Downloaded: ${fileData.filename}`);
+  } catch (e) {
+    showToast('Failed to download file: ' + e.message, 'error');
+  }
 }
 
 function escapeHtml(text) {
@@ -340,6 +373,85 @@ function formatFileSize(bytes) {
   const sizes = ['Bytes', 'KB', 'MB', 'GB'];
   const i = Math.floor(Math.log(bytes) / Math.log(k));
   return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+}
+
+function addFileMessageWithProgress(file, messageId) {
+  const chatMessages = document.getElementById('chatMessages');
+  const messageDiv = document.createElement('div');
+  messageDiv.className = 'chat-message sent';
+  messageDiv.id = messageId;
+  
+  const timestamp = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+  
+  messageDiv.innerHTML = `
+    <div class="message-content">
+      <p>📎 ${escapeHtml(file.name)} (${formatFileSize(file.size)})</p>
+      <div class="file-progress">
+        <div class="progress-bar">
+          <div class="progress-fill" style="width: 0%"></div>
+        </div>
+        <span class="progress-text">0%</span>
+      </div>
+      <small style="opacity: 0.7; font-size: 12px;">${timestamp}</small>
+    </div>
+  `;
+  
+  chatMessages.appendChild(messageDiv);
+  chatMessages.scrollTop = chatMessages.scrollHeight;
+}
+
+function updateFileProgress(messageId, status, progress = 0, message = '') {
+  const messageEl = document.getElementById(messageId);
+  if (!messageEl) return;
+  
+  const progressFill = messageEl.querySelector('.progress-fill');
+  const progressText = messageEl.querySelector('.progress-text');
+  const progressContainer = messageEl.querySelector('.file-progress');
+  
+  if (status === 'progress') {
+    progressFill.style.width = progress + '%';
+    progressText.textContent = Math.round(progress) + '%';
+  } else if (status === 'complete') {
+    progressFill.style.width = '100%';
+    progressText.textContent = '✅ Sent';
+    progressContainer.style.opacity = '0.7';
+  } else if (status === 'error') {
+    progressFill.style.width = '100%';
+    progressFill.style.background = 'var(--error)';
+    progressText.textContent = '❌ Failed';
+    if (message) {
+      progressText.title = message;
+    }
+  }
+}
+
+async function uploadFileWithProgress(formData, file, messageId) {
+  return new Promise((resolve, reject) => {
+    const xhr = new XMLHttpRequest();
+    
+    xhr.upload.addEventListener('progress', (e) => {
+      if (e.lengthComputable) {
+        const percentComplete = (e.loaded / e.total) * 100;
+        updateFileProgress(messageId, 'progress', percentComplete);
+      }
+    });
+    
+    xhr.addEventListener('load', () => {
+      if (xhr.status >= 200 && xhr.status < 300) {
+        updateFileProgress(messageId, 'complete');
+        resolve(JSON.parse(xhr.responseText));
+      } else {
+        reject(new Error(`HTTP ${xhr.status}: ${xhr.statusText}`));
+      }
+    });
+    
+    xhr.addEventListener('error', () => {
+      reject(new Error('Network error'));
+    });
+    
+    xhr.open('POST', '/api/send-file');
+    xhr.send(formData);
+  });
 }
 
 // File input handling
@@ -815,9 +927,15 @@ function initEventSource() {
         addChatMessage(`📢 ${data.content}`, 'received');
         showToast('New broadcast message received');
       } else if (data.type === 'file' && data.from === 'host') {
-        // Add received broadcast file to chat
-        addChatMessage(`📢 📎 ${data.filename} (${formatFileSize(data.size)})`, 'received');
+        // Add received broadcast file to chat with download link
+        const fileMessage = `📢 📎 ${data.filename} (${formatFileSize(data.size)})`;
+        addChatMessage(fileMessage, 'received', data);
         showToast(`New broadcast file: ${data.filename}`);
+        
+        // Auto-download the file
+        if (data.content) {
+          downloadBroadcastFile(data);
+        }
       } else if (data.type === 'connected') {
         console.log('Connected to broadcast events');
       }
@@ -840,6 +958,10 @@ window.clearSelectedFiles = function() {
   selectedFiles = [];
   updateFilePreview();
   document.getElementById('chatFileInput').value = '';
+};
+
+window.downloadBroadcastFile = function(fileData) {
+  downloadBroadcastFile(fileData);
 };
 
 // Initialize app

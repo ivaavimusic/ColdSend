@@ -8,8 +8,8 @@ Thank you for your interest in contributing to ColdSend! This document provides 
 
 1. **Fork the repository**
    ```bash
-   git clone https://github.com/yourusername/coldsend.git
-   cd coldsend
+git clone https://github.com/ivaavimusic/ColdSend.git
+cd ColdSend
    ```
 
 2. **Install dependencies**
