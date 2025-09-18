@@ -74,6 +74,7 @@
     "electron-icon-builder": "^2.0.1",
     "electron-icon-maker": "^0.0.5",
     "nodemon": "^3.1.0",
+    "png2icons": "^2.0.1",
     "sharp": "^0.34.4"
   },
   "os": [
@@ -108,7 +109,7 @@
     ],
     "mac": {
       "category": "public.app-category.utilities",
-      "icon": "electron/assets/icons/icons/icon.icns",
+      "icon": "electron/assets/icons/icon.icns",
       "target": [
         {
           "target": "dmg",
@@ -127,7 +128,7 @@
       ]
     },
     "win": {
-      "icon": "electron/assets/icons/icons/icon.ico",
+      "icon": "electron/assets/icons/icon.ico",
       "target": [
         {
           "target": "nsis",
@@ -144,7 +145,7 @@
       ]
     },
     "linux": {
-      "icon": "electron/assets/icons/icons",
+      "icon": "electron/assets/icons",
       "target": [
         {
           "target": "AppImage",

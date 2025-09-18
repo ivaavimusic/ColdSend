@@ -227,7 +227,17 @@ app.post('/api/connect-device', async (req, res) => {
       connectedDevices.set(deviceId, device);
       discoveredDevices.delete(deviceId);
       
-      res.json({ success: true, device });
+      // Create safe device object without circular references
+      const safeDevice = {
+        id: device.id,
+        name: device.name,
+        address: device.address,
+        status: device.status,
+        connectedAt: device.connectedAt,
+        rssi: device.rssi,
+        services: device.services
+      };
+      res.json({ success: true, device: safeDevice });
     } else {
       device.status = 'error';
       discoveredDevices.set(deviceId, device);
@@ -471,9 +481,41 @@ app.get('*', (req, res) => {
 const PORT = Number(process.env.PORT || 4000);
 const HOST = process.env.HOST || '0.0.0.0';
 
-app.listen(PORT, HOST, () => {
-  /* eslint-disable no-console */
-  console.log(`ColdSend server listening at http://${HOST}:${PORT}`);
-  console.log('UI available on the same URL.');
-  console.log(`Adapter: ${adapter.id}`);
-});
+// Function to find available port
+function findAvailablePort(startPort, host = HOST) {
+  return new Promise((resolve, reject) => {
+    const server = require('net').createServer();
+    
+    server.listen(startPort, host, () => {
+      const port = server.address().port;
+      server.close(() => resolve(port));
+    });
+    
+    server.on('error', (err) => {
+      if (err.code === 'EADDRINUSE') {
+        // Try next port
+        findAvailablePort(startPort + 1, host).then(resolve).catch(reject);
+      } else {
+        reject(err);
+      }
+    });
+  });
+}
+
+// Start server with port fallback
+findAvailablePort(PORT, HOST)
+  .then(availablePort => {
+    app.listen(availablePort, HOST, () => {
+      /* eslint-disable no-console */
+      console.log(`ColdSend server listening at http://${HOST}:${availablePort}`);
+      if (availablePort !== PORT) {
+        console.log(`Note: Port ${PORT} was in use, using ${availablePort} instead`);
+      }
+      console.log('UI available on the same URL.');
+      console.log(`Adapter: ${adapter.id}`);
+    });
+  })
+  .catch(err => {
+    console.error('Failed to start server:', err);
+    process.exit(1);
+  });

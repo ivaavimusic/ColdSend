@@ -60,7 +60,7 @@ async function createWindow() {
       webSecurity: true
     },
     // Use the generated icon
-    icon: path.join(__dirname, 'assets', 'icons', 'icons', '256x256.png'),
+    icon: path.join(__dirname, 'assets', 'icons', 'icon-256.png'),
     titleBarStyle: 'default',
     show: false // Don't show until ready
   });
@@ -95,37 +95,41 @@ async function createWindow() {
 }
 
 function startServer() {
-  const serverPath = path.join(__dirname, '..', 'src', 'server.js');
+  if (serverProcess) return;
   
-  // Set environment variables
-  const env = { 
-    ...process.env, 
-    PORT: PORT.toString(),
-    // Bind to LAN by default so other devices can reach the app. Override by setting HOST in env.
-    HOST: process.env.HOST || '0.0.0.0',
-    NODE_ENV: process.env.NODE_ENV || 'production'
-  };
-
+  const serverPath = path.join(__dirname, '../src/server.js');
   serverProcess = spawn('node', [serverPath], {
-    env,
-    stdio: ['ignore', 'pipe', 'pipe']
+    stdio: 'pipe',
+    env: { ...process.env, NODE_ENV: 'production' }
   });
-
+  
   serverProcess.stdout.on('data', (data) => {
-    console.log(`[Server] ${data}`);
+    console.log(`Server: ${data}`);
   });
-
+  
   serverProcess.stderr.on('data', (data) => {
-    console.error(`[Server Error] ${data}`);
+    console.error(`Server Error: ${data}`);
+    // Don't crash the app on server errors, just log them
   });
-
-  serverProcess.on('close', (code) => {
-    console.log(`[Server] Process exited with code ${code}`);
-  });
-
+  
   serverProcess.on('error', (err) => {
-    console.error('[Server] Failed to start:', err);
-    dialog.showErrorBox('Server Error', `Failed to start ColdSend server: ${err.message}`);
+    console.error('Failed to start server process:', err);
+    // Show user-friendly error dialog
+    if (mainWindow) {
+      mainWindow.webContents.executeJavaScript(`
+        alert('Failed to start ColdSend server. Please restart the app.');
+      `);
+    }
+  });
+  
+  serverProcess.on('close', (code) => {
+    console.log(`Server process exited with code ${code}`);
+    serverProcess = null;
+    if (code !== 0 && mainWindow) {
+      mainWindow.webContents.executeJavaScript(`
+        alert('ColdSend server stopped unexpectedly. Please restart the app.');
+      `);
+    }
   });
 }
 
@@ -232,7 +236,13 @@ function createMenu() {
 }
 
 // App event handlers
-app.whenReady().then(createWindow);
+app.whenReady().then(() => {
+  createWindow();
+  createMenu();
+}).catch(err => {
+  console.error('Failed to start app:', err);
+  app.quit();
+});
 
 app.on('window-all-closed', () => {
   stopServer();

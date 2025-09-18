@@ -41,6 +41,21 @@ class WiFiDirectAdapter extends EventEmitter {
         resolve(Array.from(this.discoveredDevices.values()));
       }, timeoutMs);
 
+      // Handle socket errors
+      this.discoverySocket.on('error', (err) => {
+        console.error('Discovery socket error:', err.message);
+        if (err.code === 'EADDRINUSE') {
+          console.log(`Port ${this.discoveryPort} in use, trying ${this.discoveryPort + 1}`);
+          this.discoveryPort += 1;
+          cleanup();
+          // Retry with new port
+          setTimeout(() => this.scanDevices(timeoutMs).then(resolve).catch(reject), 100);
+          return;
+        }
+        cleanup();
+        reject(err);
+      });
+
       // Listen for device announcements
       this.discoverySocket.on('message', (msg, rinfo) => {
         try {
