@@ -1,7 +1,7 @@
 const { app, BrowserWindow, Menu, shell, dialog } = require('electron');
 const path = require('path');
-const { spawn } = require('child_process');
 const fs = require('fs');
+const { spawn } = require('child_process');
 const net = require('net');
 
 // Keep a global reference of the window object
@@ -97,40 +97,95 @@ async function createWindow() {
 function startServer() {
   if (serverProcess) return;
   
-  const serverPath = path.join(__dirname, '../src/server.js');
-  serverProcess = spawn('node', [serverPath], {
-    stdio: 'pipe',
-    env: { ...process.env, NODE_ENV: 'production' }
-  });
+  // Use absolute path for production build
+  let serverPath;
+  if (app.isPackaged) {
+    // In packaged app, the path is relative to the app resources
+    serverPath = path.join(process.resourcesPath, 'app', 'src', 'server.js');
+    console.log('Using packaged server path:', serverPath);
+  } else {
+    // In development, use relative path
+    serverPath = path.join(__dirname, '../src/server.js');
+    console.log('Using development server path:', serverPath);
+  }
   
-  serverProcess.stdout.on('data', (data) => {
-    console.log(`Server: ${data}`);
-  });
+  // Create logs directory if it doesn't exist
+  const userDataPath = app.getPath('userData');
+  const logsPath = path.join(userDataPath, 'logs');
   
-  serverProcess.stderr.on('data', (data) => {
-    console.error(`Server Error: ${data}`);
-    // Don't crash the app on server errors, just log them
-  });
-  
-  serverProcess.on('error', (err) => {
-    console.error('Failed to start server process:', err);
-    // Show user-friendly error dialog
-    if (mainWindow) {
-      mainWindow.webContents.executeJavaScript(`
-        alert('Failed to start ColdSend server. Please restart the app.');
-      `);
+  try {
+    if (!fs.existsSync(logsPath)) {
+      fs.mkdirSync(logsPath, { recursive: true });
     }
-  });
-  
-  serverProcess.on('close', (code) => {
-    console.log(`Server process exited with code ${code}`);
-    serverProcess = null;
-    if (code !== 0 && mainWindow) {
-      mainWindow.webContents.executeJavaScript(`
-        alert('ColdSend server stopped unexpectedly. Please restart the app.');
-      `);
-    }
-  });
+    
+    // Create log file for debugging
+    const logFile = path.join(logsPath, 'server.log');
+    const logStream = fs.createWriteStream(logFile, { flags: 'a' });
+    
+    logStream.write(`\n--- Server started at ${new Date().toISOString()} ---\n`);
+    logStream.write(`Server path: ${serverPath}\n`);
+    
+    // Start server process
+    serverProcess = spawn('node', [serverPath], {
+      stdio: 'pipe',
+      env: { 
+        ...process.env, 
+        NODE_ENV: 'production',
+        COLDSEND_USER_DATA: userDataPath
+      }
+    });
+    
+    serverProcess.stdout.on('data', (data) => {
+      const output = `Server: ${data}`;
+      console.log(output);
+      logStream.write(`${output}\n`);
+    });
+    
+    serverProcess.stderr.on('data', (data) => {
+      const error = `Server Error: ${data}`;
+      console.error(error);
+      logStream.write(`${error}\n`);
+      
+      // Don't crash the app on server errors, just log them
+      if (mainWindow) {
+        mainWindow.webContents.send('server-error', error);
+      }
+    });
+    
+    serverProcess.on('error', (err) => {
+      const error = `Failed to start server process: ${err.message}`;
+      console.error(error);
+      logStream.write(`${error}\n`);
+      
+      // Show user-friendly error dialog
+      if (mainWindow) {
+        dialog.showErrorBox(
+          'Server Error',
+          'Failed to start ColdSend server. Please restart the app.'
+        );
+      }
+    });
+    
+    serverProcess.on('close', (code) => {
+      const message = `Server process exited with code ${code}`;
+      console.log(message);
+      logStream.write(`${message}\n`);
+      
+      serverProcess = null;
+      if (code !== 0 && code !== null && mainWindow) {
+        dialog.showErrorBox(
+          'Server Stopped',
+          'ColdSend server stopped unexpectedly. Please restart the app.'
+        );
+      }
+    });
+  } catch (err) {
+    console.error('Error setting up server:', err);
+    dialog.showErrorBox(
+      'Startup Error',
+      `Failed to initialize ColdSend: ${err.message}`
+    );
+  }
 }
 
 function stopServer() {

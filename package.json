@@ -100,12 +100,19 @@
       "output": "dist"
     },
     "files": [
-      "electron/",
-      "src/",
-      "public/",
-      "node_modules/",
+      "electron/**/*",
+      "src/**/*",
+      "public/**/*",
+      "node_modules/**/*",
       "package.json",
       ".env.example"
+    ],
+    "extraResources": [
+      {
+        "from": "src",
+        "to": "app/src",
+        "filter": ["**/*"]
+      }
     ],
     "mac": {
       "category": "public.app-category.utilities",
