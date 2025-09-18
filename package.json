@@ -12,13 +12,13 @@
     "air-gapped",
     "crypto"
   ],
-  "homepage": "https://github.com/yourusername/coldsend#readme",
+  "homepage": "https://github.com/ivaavimusic/ColdSend#readme",
   "bugs": {
-    "url": "https://github.com/yourusername/coldsend/issues"
+    "url": "https://github.com/ivaavimusic/ColdSend/issues"
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/yourusername/coldsend.git"
+    "url": "git+https://github.com/ivaavimusic/ColdSend.git"
   },
   "license": "MIT",
   "author": {
@@ -46,11 +46,10 @@
     "prepublishOnly": "npm test && npm run lint",
     "electron": "electron electron/main.js",
     "electron-dev": "NODE_ENV=development electron electron/main.js",
-    "make-icons": "icon-gen -i electron/assets/icon.svg -o electron/assets/icons --report --ico --icns --favicon",
-    "dist": "npm run make-icons && electron-builder",
-    "dist-mac": "npm run make-icons && electron-builder --mac",
-    "dist-win": "npm run make-icons && electron-builder --win",
-    "dist-linux": "npm run make-icons && electron-builder --linux"
+    "dist": "electron-builder",
+    "dist-mac": "electron-builder --mac",
+    "dist-win": "electron-builder --win",
+    "dist-linux": "electron-builder --linux"
   },
   "engines": {
     "node": ">=16.0.0",
@@ -68,8 +67,7 @@
   "devDependencies": {
     "nodemon": "^3.1.0",
     "electron": "^28.0.0",
-    "electron-builder": "^24.9.1",
-    "icon-gen": "^3.0.0"
+    "electron-builder": "^24.9.1"
   },
   "os": [
     "darwin",
@@ -96,7 +94,6 @@
     ],
     "mac": {
       "category": "public.app-category.utilities",
-      "icon": "electron/assets/icons/mac/icon.icns",
       "target": [
         {
           "target": "dmg",
@@ -105,7 +102,6 @@
       ]
     },
     "win": {
-      "icon": "electron/assets/icons/win/icon.ico",
       "target": [
         {
           "target": "nsis",
@@ -114,7 +110,6 @@
       ]
     },
     "linux": {
-      "icon": "electron/assets/icons/png/512x512.png",
       "target": [
         {
           "target": "AppImage",
