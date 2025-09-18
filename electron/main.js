@@ -59,8 +59,8 @@ async function createWindow() {
       enableRemoteModule: false,
       webSecurity: true
     },
-    // Use generated PNG (Windows/Linux use this; macOS uses app bundle icon)
-    icon: path.join(__dirname, 'assets', 'icons', 'png', '256x256.png'),
+    // Use the SVG icon (electron-builder will convert as needed)
+    icon: path.join(__dirname, 'assets', 'icon.svg'),
     titleBarStyle: 'default',
     show: false // Don't show until ready
   });
@@ -214,13 +214,13 @@ function createMenu() {
         {
           label: 'Learn More',
           click: () => {
-            shell.openExternal('https://github.com/yourusername/coldsend');
+            shell.openExternal('https://github.com/ivaavimusic/ColdSend');
           }
         },
         {
           label: 'Report Issue',
           click: () => {
-            shell.openExternal('https://github.com/yourusername/coldsend/issues');
+            shell.openExternal('https://github.com/ivaavimusic/ColdSend/issues');
           }
         }
       ]
