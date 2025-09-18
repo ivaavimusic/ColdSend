@@ -337,10 +337,19 @@ app.post('/api/send-file', upload.single('file'), async (req, res) => {
     
     // Handle broadcast mode
     if (broadcast === 'true') {
+      // Check file size limit for broadcast (10MB max for SSE)
+      const maxBroadcastSize = 10 * 1024 * 1024; // 10MB
+      if (size > maxBroadcastSize) {
+        return res.status(400).json({ 
+          error: `File too large for broadcast. Max size: ${Math.round(maxBroadcastSize / 1024 / 1024)}MB` 
+        });
+      }
+      
       // Read file content and encode as base64 for broadcast
-      const fs = require('fs');
       const fileContent = fs.readFileSync(filePath);
       const base64Content = fileContent.toString('base64');
+      
+      console.log(`Broadcasting file: ${originalname} (${size} bytes, base64: ${base64Content.length} chars)`);
       
       const message = {
         type: 'file',

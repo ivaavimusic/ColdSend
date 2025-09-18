@@ -264,25 +264,41 @@ function addChatMessage(text, type = 'received', fileData = null) {
   
   const timestamp = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
   
-  let content = `<p>${escapeHtml(text)}</p>`;
+  const contentDiv = document.createElement('div');
+  contentDiv.className = 'message-content';
+  
+  const textP = document.createElement('p');
+  textP.textContent = text;
+  contentDiv.appendChild(textP);
   
   // Add download button for broadcast files
   if (fileData && fileData.type === 'file' && fileData.content) {
-    content += `<button class="download-file-btn" onclick="downloadBroadcastFile(${JSON.stringify(fileData).replace(/"/g, '&quot;')})">💾 Download</button>`;
+    const downloadBtn = document.createElement('button');
+    downloadBtn.className = 'download-file-btn';
+    downloadBtn.innerHTML = '💾 Download';
+    downloadBtn.onclick = () => downloadBroadcastFile(fileData);
+    contentDiv.appendChild(downloadBtn);
   }
   
-  messageDiv.innerHTML = `
-    <div class="message-content">
-      ${content}
-      <small style="opacity: 0.7; font-size: 12px;">${timestamp}</small>
-    </div>
-  `;
+  const timeSmall = document.createElement('small');
+  timeSmall.style.opacity = '0.7';
+  timeSmall.style.fontSize = '12px';
+  timeSmall.textContent = timestamp;
+  contentDiv.appendChild(timeSmall);
   
+  messageDiv.appendChild(contentDiv);
   chatMessages.appendChild(messageDiv);
   chatMessages.scrollTop = chatMessages.scrollHeight;
 }
 
 function downloadBroadcastFile(fileData) {
+  console.log('Download attempt:', fileData);
+  
+  if (!fileData || !fileData.content) {
+    showToast('No file data available for download', 'error');
+    return;
+  }
+  
   try {
     // Convert base64 to blob
     const byteCharacters = atob(fileData.content);
@@ -293,11 +309,14 @@ function downloadBroadcastFile(fileData) {
     const byteArray = new Uint8Array(byteNumbers);
     const blob = new Blob([byteArray], { type: fileData.mimeType || 'application/octet-stream' });
     
+    console.log('Blob created:', blob.size, 'bytes');
+    
     // Create download link
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = fileData.filename;
+    a.download = fileData.filename || 'download';
+    a.style.display = 'none';
     document.body.appendChild(a);
     a.click();
     document.body.removeChild(a);
@@ -305,6 +324,7 @@ function downloadBroadcastFile(fileData) {
     
     showToast(`Downloaded: ${fileData.filename}`);
   } catch (e) {
+    console.error('Download error:', e);
     showToast('Failed to download file: ' + e.message, 'error');
   }
 }
@@ -927,6 +947,13 @@ function initEventSource() {
         addChatMessage(`📢 ${data.content}`, 'received');
         showToast('New broadcast message received');
       } else if (data.type === 'file' && data.from === 'host') {
+        console.log('Received file broadcast:', {
+          filename: data.filename,
+          size: data.size,
+          hasContent: !!data.content,
+          contentLength: data.content ? data.content.length : 0
+        });
+        
         // Add received broadcast file to chat with download link
         const fileMessage = `📢 📎 ${data.filename} (${formatFileSize(data.size)})`;
         addChatMessage(fileMessage, 'received', data);
