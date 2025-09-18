@@ -118,13 +118,35 @@ function startServer() {
     logStream.write(`Server path: ${serverPath}\n`);
     
     // Start server process
-    serverProcess = spawn('node', [serverPath], {
+    let nodeBinary;
+    
+    if (app.isPackaged) {
+      // In packaged app, use the bundled Node executable
+      if (process.platform === 'win32') {
+        // On Windows, the Node executable is named node.exe
+        nodeBinary = path.join(process.resourcesPath, 'app.asar.unpacked', 'node_modules', 'electron', 'dist', 'resources', 'electron.exe');
+      } else if (process.platform === 'darwin') {
+        // On macOS, we can use the Electron binary directly
+        nodeBinary = process.execPath;
+      } else {
+        // On Linux, similar to macOS
+        nodeBinary = process.execPath;
+      }
+      
+      logStream.write(`Using bundled node: ${nodeBinary}\n`);
+    } else {
+      // In development, use system Node
+      nodeBinary = 'node';
+    }
+    
+    serverProcess = spawn(nodeBinary, [serverPath], {
       stdio: 'pipe',
       env: { 
         ...process.env, 
         NODE_ENV: 'production',
         COLDSEND_USER_DATA: userDataPath,
-        PORT: PORT.toString() // Pass the desired port to the server
+        PORT: PORT.toString(), // Pass the desired port to the server
+        ELECTRON_RUN_AS_NODE: '1' // This tells Electron to behave like Node.js
       }
     });
     
