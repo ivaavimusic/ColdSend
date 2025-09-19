@@ -71,10 +71,7 @@
   "devDependencies": {
     "electron": "^38.1.2",
     "electron-builder": "^24.13.3",
-    "electron-icon-builder": "^2.0.1",
-    "electron-icon-maker": "^0.0.5",
     "nodemon": "^3.1.0",
-    "png2icons": "^2.0.1",
     "sharp": "^0.34.4"
   },
   "os": [
