@@ -102,6 +102,12 @@ function startServer() {
     
     const serverApp = express();
     
+    // In-memory state to mimic main server behavior
+    const queue = [];
+    let connectionMode = 'single';
+    const connectedDevices = [];
+    const connectedClients = new Set(); // SSE clients
+    
     // Middleware
     serverApp.use((req, res, next) => {
       res.header('Access-Control-Allow-Origin', '*');
@@ -132,8 +138,23 @@ function startServer() {
       res.json({ ok: true, message: 'ColdSend server is running' });
     });
     
+    // Status endpoint expected by the renderer
+    serverApp.get('/api/status', (req, res) => {
+      res.json({
+        ok: true,
+        adapter: 'embedded',
+        connectionMode,
+        connectedDevices,
+        queue
+      });
+    });
+    
     serverApp.get('/api/scan-devices', (req, res) => {
       res.json({ devices: [], adapter: 'wifi-direct' });
+    });
+    
+    serverApp.post('/api/scan-devices', (req, res) => {
+      res.json({ success: true, devices: [], adapter: 'embedded' });
     });
     
     serverApp.get('/api/connected-devices', (req, res) => {
@@ -144,15 +165,72 @@ function startServer() {
       res.json({ success: false, error: 'Device connection not implemented in embedded mode' });
     });
     
+    // Simulate text send by adding to queue and marking sent
     serverApp.post('/api/send-text', (req, res) => {
-      res.json({ success: false, error: 'Text sending not implemented in embedded mode' });
+      const job = {
+        id: 'job_' + Date.now() + '_' + Math.round(Math.random() * 1e6),
+        kind: 'text',
+        status: 'sent',
+        receivedAt: new Date().toISOString(),
+        finishedAt: new Date().toISOString(),
+      };
+      queue.push(job);
+      res.json({ success: true, jobId: job.id });
     });
     
     // File upload setup
     const upload = multer({ dest: path.join(app.getPath('temp'), 'coldsend-uploads') });
     
+    // Simulate file send by adding to queue and marking sent
     serverApp.post('/api/send-file', upload.single('file'), (req, res) => {
-      res.json({ success: false, error: 'File sending not implemented in embedded mode' });
+      const { originalname = 'file', size = 0 } = req.file || {};
+      const job = {
+        id: 'job_' + Date.now() + '_' + Math.round(Math.random() * 1e6),
+        kind: 'file',
+        status: 'sent',
+        receivedAt: new Date().toISOString(),
+        finishedAt: new Date().toISOString(),
+        filename: originalname,
+        size
+      };
+      queue.push(job);
+      res.json({ ok: true, id: job.id, status: job.status, filename: originalname, size });
+    });
+
+    // SSE endpoint for broadcast messages
+    serverApp.get('/api/events', (req, res) => {
+      res.writeHead(200, {
+        'Content-Type': 'text/event-stream',
+        'Cache-Control': 'no-cache',
+        'Connection': 'keep-alive',
+        'Access-Control-Allow-Origin': '*',
+      });
+      const clientId = Date.now() + '_' + Math.random();
+      const client = { id: clientId, res };
+      connectedClients.add(client);
+      res.write(`data: ${JSON.stringify({ type: 'connected', clientId })}\n\n`);
+      req.on('close', () => {
+        connectedClients.delete(client);
+      });
+    });
+
+    function broadcastToClients(message) {
+      const data = `data: ${JSON.stringify(message)}\n\n`;
+      connectedClients.forEach(client => {
+        try { client.res.write(data); } catch (_) { connectedClients.delete(client); }
+      });
+    }
+
+    // Broadcast text endpoint used by chat UI
+    serverApp.post('/api/broadcast-text', (req, res) => {
+      const message = {
+        type: 'text',
+        content: (req.body && req.body.text) || '',
+        timestamp: new Date().toISOString(),
+        from: 'host'
+      };
+      broadcastToClients(message);
+      res.json({ success: true, clientCount: connectedClients.size });
     });
     
     // Fallback to serve index.html
@@ -161,8 +239,8 @@ function startServer() {
     });
     
     // Start the server
-    httpServer = serverApp.listen(PORT, '127.0.0.1', () => {
-      console.log(`ColdSend embedded server listening at http://127.0.0.1:${PORT}`);
+    httpServer = serverApp.listen(PORT, '0.0.0.0', () => {
+      console.log(`ColdSend embedded server listening at http://0.0.0.0:${PORT}`);
       actualServerPort = PORT;
       
       // Load the UI
